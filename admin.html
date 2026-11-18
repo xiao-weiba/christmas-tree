@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>管理题目 · 圣诞默契树</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  min-height:100vh;
+  background:linear-gradient(180deg,#0a1628 0%,#1a2a4a 50%,#2a3a5a 100%);
+  font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+  color:#fff;padding:20px;max-width:480px;margin:0 auto;
+}
+h1{font-size:18px;text-align:center;margin-bottom:4px;color:#ffe066}
+.sub{font-size:12px;color:#8899bb;text-align:center;margin-bottom:20px}
+
+.card{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);
+  border-radius:14px;padding:16px;margin-bottom:14px}
+.card h2{font-size:14px;margin-bottom:10px;color:#aabbdd}
+.card h2 span{float:right;font-size:11px;color:rgba(255,255,255,.4)}
+
+label{font-size:13px;color:#ccd;display:block;margin-bottom:6px}
+input[type=text],input[type=number]{
+  width:100%;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);
+  border-radius:8px;padding:9px 12px;color:#fff;font-size:14px;outline:none}
+input:focus{border-color:#ffe066}
+
+/* 题目卡片 */
+.q-card{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);
+  border-radius:10px;padding:12px;margin-bottom:10px;position:relative}
+.q-card .qnum{position:absolute;top:8px;right:10px;font-size:11px;color:rgba(255,255,255,.3)}
+.q-card input{margin-bottom:8px}
+.row{display:flex;gap:8px}
+.row input{flex:1}
+.del-btn{position:absolute;top:8px;left:50%;transform:translateX(-50%);
+  font-size:11px;color:#ff6b6b;background:none;border:none;cursor:pointer}
+.del-btn:hover{text-decoration:underline}
+
+.btn{width:100%;padding:12px;font-size:14px;font-weight:bold;border:none;
+  border-radius:10px;cursor:pointer;letter-spacing:1px;transition:transform .1s;margin-top:6px}
+.btn:active{transform:scale(.97)}
+.btn-primary{background:linear-gradient(135deg,#ff6b6b,#ffd700);color:#1a1a2e}
+.btn-ghost{background:transparent;border:1px solid rgba(255,255,255,.25);color:#ccc}
+.btn-sm{width:auto;padding:6px 14px;font-size:12px;margin-top:0;display:inline-block}
+.btn-danger{border-color:rgba(255,100,100,.4);color:#ff8888}
+
+.msg{font-size:12px;padding:10px;border-radius:8px;margin-top:10px}
+.msg.ok{background:rgba(100,255,100,.12);border:1px solid rgba(100,255,100,.3)}
+.msg.err{background:rgba(255,100,100,.12);border:1px solid rgba(255,100,100,.3)}
+
+.back{font-size:12px;color:rgba(255,255,255,.4);text-decoration:none;display:block;
+  text-align:center;margin-top:20px}
+.back:hover{color:rgba(255,255,255,.7)}
+</style>
+</head>
+<body>
+
+<h1>⚙️ 题目管理</h1>
+<div class="sub">设置你的10道题和答案，朋友打开 index.html 时会自动同步</div>
+
+<!-- 配置已内置，无需填写 -->
+<div class="card" style="display:none">
+  <h2>Supabase 配置 <span>已配置</span></h2>
+  <label>Project URL</label>
+  <input type="text" id="cfgUrl" placeholder="https://xxx.supabase.co">
+  <div style="height:8px"></div>
+  <label>Anon Key</label>
+  <input type="text" id="cfgKey" placeholder="eyJ...">
+  <div id="cfgMsg" class="msg" style="display:none"></div>
+</div>
+
+<!-- 主人信息 -->
+<div class="card">
+  <h2>👑 你的昵称</h2>
+  <input type="text" id="hostName" placeholder="输入你的昵称" maxlength="10">
+</div>
+
+<!-- 题目编辑区 -->
+<div class="card">
+  <h2>✏️ 编辑题目 <span id="qCount"></span></h2>
+  <div id="qList"></div>
+  <button class="btn btn-ghost btn-sm" id="addQ">＋ 添加题目（最多10道）</button>
+</div>
+
+<!-- 操作按钮 -->
+<div class="card">
+  <button class="btn btn-primary" id="saveBtn">💾 保存到圣诞树</button>
+  <button class="btn btn-ghost" id="resetBtn">🔄 恢复默认题目</button>
+  <div id="saveMsg" class="msg" style="display:none"></div>
+</div>
+
+<a class="back" href="index.html">← 返回答题页</a>
+
+<script>
+/* ═════════ 配置（部署前替换） ═════════ */
+const DEFAULT_SUPABASE_URL = 'https://bvqpbxkupocyovfxeumd.supabase.co';
+const DEFAULT_SUPABASE_KEY = 'sb_publishable_o5wTEVMpab3RK1gp-46ueg_VHr9m9ZP';
+
+const DEFAULT_QUESTIONS = [
+  {text:'周末更想宅家还是出门？', a:'🏠 宅家', b:'🚗 出门'},
+  {text:'喜欢甜食还是咸食？',     a:'🍰 甜食', b:'🧀 咸食'},
+  {text:'看电影选科幻还是爱情？', a:'🚀 科幻', b:'💕 爱情'},
+  {text:'睡觉喜欢开灯还是关灯？', a:'💡 开灯', b:'🌙 关灯'},
+  {text:'夏天最爱吃西瓜还是冰淇淋？', a:'🍉 西瓜', b:'🍦 冰淇淋'},
+  {text:'手机没电时你焦虑还是无所谓？', a:'😰 焦虑', b:'😌 无所谓'},
+  {text:'喜欢群聊还是私聊？',   a:'👥 群聊', b:'💬 私聊'},
+  {text:'收到礼物更开心包装还是内容？', a:'🎀 包装', b:'🎁 内容'},
+  {text:'早上起得来还是起不来？', a:'☀️ 起得来', b:'😴 起不来'},
+  {text:'吵架后你会主动道歉还是等对方？', a:'🤗 主动道歉', b:'⏳ 等对方'},
+];
+
+let questions = JSON.parse(JSON.stringify(DEFAULT_QUESTIONS));
+let answers = new Array(10).fill(null); // true=a, false=b
+
+/* 读取 Supabase 配置（支持从 localStorage 或硬编码） */
+function getCfg(){
+  const savedUrl = localStorage.getItem('sb_url') || DEFAULT_SUPABASE_URL;
+  const savedKey = localStorage.getItem('sb_key') || DEFAULT_SUPABASE_KEY;
+  return {url:savedUrl, key:savedKey};
+}
+
+/* 初始化配置输入框 */
+(function initCfg(){
+  const cfg = getCfg();
+  document.getElementById('cfgUrl').value = cfg.url === DEFAULT_SUPABASE_URL ? '' : cfg.url;
+  document.getElementById('cfgKey').value = cfg.key === DEFAULT_SUPABASE_KEY ? '' : cfg.key;
+})();
+
+document.getElementById('cfgUrl').onchange = function(){
+  if(this.value.trim()) localStorage.setItem('sb_url', this.value.trim());
+};
+document.getElementById('cfgKey').onchange = function(){
+  if(this.value.trim()) localStorage.setItem('sb_key', this.value.trim());
+};
+
+/* 题目卡片渲染 */
+function renderQuestions(){
+  const list = document.getElementById('qList');
+  document.getElementById('qCount').textContent = questions.length + ' / 10';
+  list.innerHTML = '';
+  questions.forEach((q, i) => {
+    const div = document.createElement('div');
+    div.className = 'q-card';
+    div.innerHTML = `
+      <div class="qnum">${i+1}</div>
+      ${questions.length > 1 ? `<button class="del-btn" data-i="${i}">✕ 删除</button>` : ''}
+      <label>题目</label>
+      <input type="text" data-i="${i}" data-f="text" value="${q.text}" placeholder="题目文字">
+      <div class="row">
+        <input type="text" data-i="${i}" data-f="a" value="${q.a}" placeholder="选项A">
+        <input type="text" data-i="${i}" data-f="b" value="${q.b}" placeholder="选项B">
+      </div>
+      <div style="font-size:11px;color:#8899bb;margin-top:8px">
+        <span style="margin-right:12px">我选 A（${q.a}）</span>
+        <span>我选 B（${q.b}）</span>
+      </div>
+      <div class="row" style="margin-top:6px">
+        <button class="btn btn-ghost btn-sm ans-btn" data-i="${i}" data-val="true"
+          style="flex:1;border-color:${answers[i]===true?'#ffe066':'rgba(255,255,255,.25)'}">✓ 我选 A</button>
+        <button class="btn btn-ghost btn-sm ans-btn" data-i="${i}" data-val="false"
+          style="flex:1;border-color:${answers[i]===false?'#ffe066':'rgba(255,255,255,.25)'}">✓ 我选 B</button>
+      </div>`;
+    list.appendChild(div);
+  });
+
+  // 绑定事件
+  list.querySelectorAll('input[data-f]').forEach(inp => {
+    inp.oninput = () => {
+      const i = +inp.dataset.i;
+      questions[i][inp.dataset.f] = inp.value;
+    };
+  });
+  list.querySelectorAll('.del-btn').forEach(btn => {
+    btn.onclick = () => {
+      const i = +btn.dataset.i;
+      if(questions.length <= 1){alert('至少保留1道题');return}
+      questions.splice(i, 1);
+      answers.splice(i, 1);
+      renderQuestions();
+    };
+  });
+  list.querySelectorAll('.ans-btn').forEach(btn => {
+    btn.onclick = () => {
+      const i = +btn.dataset.i;
+      answers[i] = btn.dataset.val === 'true';
+      renderQuestions();
+    };
+  });
+}
+
+document.getElementById('addQ').onclick = () => {
+  if(questions.length >= 10){alert('最多10道题');return}
+  questions.push({text:'新题目', a:'选项A', b:'选项B'});
+  answers.push(null);
+  renderQuestions();
+};
+
+document.getElementById('resetBtn').onclick = () => {
+  if(!confirm('恢复默认10道题？')) return;
+  questions = JSON.parse(JSON.stringify(DEFAULT_QUESTIONS));
+  answers = new Array(10).fill(null);
+  renderQuestions();
+};
+
+/* 保存到 Supabase */
+document.getElementById('saveBtn').onclick = async () => {
+  const cfg = getCfg();
+  const msg = document.getElementById('saveMsg');
+
+  const name = document.getElementById('hostName').value.trim();
+  if(!name){
+    msg.style.display='block'; msg.className='msg err';
+    msg.textContent='请输入你的昵称';
+    return;
+  }
+  if(questions.some(q=>!q.text.trim()||!q.a.trim()||!q.b.trim())){
+    msg.style.display='block'; msg.className='msg err';
+    msg.textContent='请完善所有题目的文字和选项';
+    return;
+  }
+  if(answers.some(a=>a===null)){
+    msg.style.display='block'; msg.className='msg err';
+    msg.textContent='请为你自己的每道题选一个答案（A或B）';
+    return;
+  }
+
+  try{
+    // 先删除旧的 is_host=true 记录，再插入新的
+    const del = await fetch(`${cfg.url}/rest/v1/players?is_host=eq.true`,{
+      method:'DELETE',
+      headers:{'apikey':cfg.key,'Authorization':`Bearer ${cfg.key}`}
+    });
+    const res = await fetch(`${cfg.url}/rest/v1/players`,{
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'apikey':cfg.key,
+        'Authorization':`Bearer ${cfg.key}`,
+        'Prefer':'return=representation'
+      },
+      body:JSON.stringify({
+        name, ornament:'⭐',
+        answers,
+        questions,           // 自定义题目
+        score:10, layer:10,
+        is_host:true, host_id:null
+      })
+    });
+    const data = await res.json();
+    if(data.error) throw new Error(data.error);
+    msg.style.display='block'; msg.className='msg ok';
+    msg.textContent=`✅ 保存成功！朋友打开 index.html 即可答题（默契树共${questions.length}层有效题目）`;
+  }catch(e){
+    msg.style.display='block'; msg.className='msg err';
+    msg.textContent='保存失败：'+e.message;
+  }
+};
+
+/* 初始化 */
+renderQuestions();
+</script>
+</body>
+</html>

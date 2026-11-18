@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>圣诞树默契猜一猜</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  min-height:100vh;
+  background:linear-gradient(180deg,#0a1628 0%,#1a2a4a 50%,#2a3a5a 100%);
+  font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+  color:#fff;overflow-x:hidden;
+}
+.snow{position:fixed;top:-10px;left:var(--x);width:var(--s);height:var(--s);
+  background:#fff;border-radius:50%;opacity:var(--o);
+  animation:fall var(--d) linear infinite;pointer-events:none;z-index:0}
+@keyframes fall{to{transform:translateY(110vh) rotate(360deg)}}
+
+.wrap{position:relative;z-index:1;display:flex;flex-direction:column;
+  align-items:center;padding:16px;max-width:420px;margin:0 auto}
+h1{font-size:20px;text-align:center;margin-bottom:4px;letter-spacing:2px;
+  text-shadow:0 0 12px rgba(255,200,100,.5)}
+.sub{font-size:11px;color:#aabbdd;text-align:center;margin-bottom:14px}
+
+.tree-box{width:100%;max-width:340px;position:relative;margin-bottom:12px}
+.tree-box svg{width:100%;height:auto;display:block}
+
+.orn{position:absolute;display:flex;flex-direction:column;align-items:center;
+  font-size:11px;transform:translate(-50%,-50%);
+  animation:drop .5s ease-out;transition:left .4s,top .4s}
+.orn .icon{font-size:22px;line-height:1;filter:drop-shadow(0 0 4px rgba(255,200,80,.7))}
+.orn .tag{background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.25);
+  border-radius:10px;padding:1px 6px;font-size:10px;margin-top:2px;white-space:nowrap}
+.orn.host .icon{filter:drop-shadow(0 0 8px rgba(255,215,0,.9))}
+.orn.host .tag{border-color:rgba(255,215,0,.6);color:#ffe066}
+@keyframes drop{from{opacity:0;transform:translate(-50%,-50%) translateY(-12px)}
+  to{opacity:1;transform:translate(-50%,-50%) translateY(0)}}
+
+.card{width:100%;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);
+  border-radius:16px;padding:18px;margin-bottom:12px;backdrop-filter:blur(8px)}
+.card h2{font-size:15px;margin-bottom:12px;color:#ffe066}
+.card .hint{font-size:12px;color:#8899bb;margin-bottom:10px;line-height:1.6}
+
+input[type=text]{width:100%;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);
+  border-radius:10px;padding:10px 12px;color:#fff;font-size:15px;outline:none;margin-bottom:12px}
+input[type=text]::placeholder{color:rgba(255,255,255,.4)}
+input[type=text]:focus{border-color:#ffe066}
+
+.orn-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin:8px 0 14px}
+.orn-opt{font-size:24px;text-align:center;cursor:pointer;
+  background:rgba(255,255,255,.06);border-radius:10px;padding:6px 2px;
+  border:2px solid transparent;transition:.15s}
+.orn-opt.sel{border-color:#ffe066;background:rgba(255,224,102,.15);transform:scale(1.15)}
+
+/* 进度条 */
+.progress{height:4px;background:rgba(255,255,255,.1);border-radius:2px;margin-bottom:14px;overflow:hidden}
+.progress-bar{height:100%;background:linear-gradient(90deg,#ff6b6b,#ffd700);
+  width:0%;transition:width .4s;border-radius:2px}
+
+/* 单题卡片 */
+.q-single{display:none}
+.q-single.active{display:block;animation:fadeUp .3s ease}
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+.q-single .qnum{font-size:11px;color:rgba(255,255,255,.4);margin-bottom:4px}
+.q-single .qtext{font-size:15px;color:#fff;margin-bottom:14px;line-height:1.5}
+.q-single .opts{display:flex;flex-direction:column;gap:10px}
+.q-single .opt{padding:14px 16px;border-radius:12px;font-size:15px;text-align:center;
+  cursor:pointer;user-select:none;transition:.15s;
+  background:rgba(255,255,255,.06);border:2px solid rgba(255,255,255,.15)}
+.q-single .opt:active{transform:scale(.97)}
+.q-single .opt.locked{opacity:.35;pointer-events:none}
+
+/* 已答题回顾 */
+.q-done{display:flex;align-items:center;gap:8px;font-size:13px;color:rgba(255,255,255,.5);
+  padding:6px 0}
+.q-done .mark{color:#4ade80;font-size:12px}
+
+/* 提交按钮 */
+.submit-area{margin-top:16px}
+.btn{width:100%;padding:13px;font-size:15px;font-weight:bold;border:none;
+  border-radius:12px;cursor:pointer;letter-spacing:2px;transition:transform .1s;margin-top:8px}
+.btn:active{transform:scale(.97)}
+.btn-primary{background:linear-gradient(135deg,#ff6b6b,#ffd700);color:#1a1a2e}
+.btn-ghost{background:transparent;border:1px solid rgba(255,255,255,.25);color:#ccc}
+
+.result{padding:14px;border-radius:12px;text-align:center;margin-top:12px;font-size:14px}
+.result.good{background:rgba(100,255,100,.15);border:1px solid rgba(100,255,100,.3)}
+.result.bad{background:rgba(255,100,100,.15);border:1px solid rgba(255,100,100,.3)}
+.result b{font-size:22px;color:#ffe066;display:block;margin:4px 0}
+
+.hidden{display:none}
+@media(max-height:700px){.tree-box{max-width:280px}}
+</style>
+</head>
+<body>
+<div id="snow"></div>
+
+<div class="wrap">
+  <h1>🎄 圣诞默契树</h1>
+  <div class="sub">猜猜TA的答案 · 猜对越多挂得越高</div>
+
+  <!-- 圣诞树 -->
+  <div class="tree-box" id="treeBox">
+    <svg id="treeSVG" viewBox="0 0 340 420"></svg>
+  </div>
+
+  <!-- 答题面板 -->
+  <div class="card" id="quizPanel">
+    <h2 id="quizTitle">🎁 猜猜TA的答案</h2>
+    <div class="hint" id="hostHint">等待主人设置答案...</div>
+
+    <!-- 准备区：昵称 + 挂件 -->
+    <div id="prepArea">
+      <input type="text" id="guestName" placeholder="输入你的昵称" maxlength="10">
+      <div style="font-size:12px;color:#aabbdd">选一个挂件：</div>
+      <div class="orn-grid" id="guestOrnGrid"></div>
+      <button class="btn btn-primary" id="startQuiz">开始答题 ✨</button>
+    </div>
+
+    <!-- 答题区（一题一题出） -->
+    <div id="quizArea" class="hidden">
+      <div class="progress"><div class="progress-bar" id="progressBar"></div></div>
+      <div id="questionsContainer"></div>
+      <!-- 已答题回顾 -->
+      <div id="doneList" style="margin-top:12px"></div>
+      <div class="submit-area hidden" id="submitArea">
+        <button class="btn btn-primary" id="guestSubmit">提交答案，揭晓默契分 🎄</button>
+      </div>
+    </div>
+
+    <!-- 结果 -->
+    <div id="guestResult"></div>
+  </div>
+
+  <a style="font-size:11px;color:rgba(255,255,255,.3);text-decoration:none;display:block;text-align:center;margin-top:16px" href="admin.html">⚙️ 管理题目设置</a>
+</div>
+
+<script>
+/* ═════════ 配置 ═════════ */
+const SUPABASE_URL = 'https://bvqpbxkupocyovfxeumd.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_o5wTEVMpab3RK1gp-46ueg_VHr9m9ZP';
+
+/* 备用默认题目（数据库没有题目时使用） */
+const DEFAULT_QUESTIONS = [
+  {text:'周末更想宅家还是出门？', a:'🏠 宅家', b:'🚗 出门'},
+  {text:'喜欢甜食还是咸食？',     a:'🍰 甜食', b:'🧀 咸食'},
+  {text:'看电影选科幻还是爱情？', a:'🚀 科幻', b:'💕 爱情'},
+  {text:'睡觉喜欢开灯还是关灯？', a:'💡 开灯', b:'🌙 关灯'},
+  {text:'夏天最爱吃西瓜还是冰淇淋？', a:'🍉 西瓜', b:'🍦 冰淇淋'},
+  {text:'手机没电时你焦虑还是无所谓？', a:'😰 焦虑', b:'😌 无所谓'},
+  {text:'喜欢群聊还是私聊？',   a:'👥 群聊', b:'💬 私聊'},
+  {text:'收到礼物更开心包装还是内容？', a:'🎀 包装', b:'🎁 内容'},
+  {text:'早上起得来还是起不来？', a:'☀️ 起得来', b:'😴 起不来'},
+  {text:'吵架后你会主动道歉还是等对方？', a:'🤗 主动道歉', b:'⏳ 等对方'},
+];
+
+const ORNAMENTS = ['🔴','⚪','⭐','🔔','🍎','❄️','🎀','🦌','🍄','🌟'];
+const TREE_LAYERS = 10;
+
+/* ═════════ Supabase ═════════ */
+function headers(){
+  return {'Content-Type':'application/json','apikey':SUPABASE_KEY,
+    'Authorization':`Bearer ${SUPABASE_KEY}`};
+}
+async function fetchPlayers(){
+  try{
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/players?select=*&limit=50`,{headers:headers()});
+    return await r.json();
+  }catch{return []}
+}
+async function insertPlayer(data){
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/players`,{
+    method:'POST', headers:{...headers(),'Prefer':'return=representation'},
+    body:JSON.stringify(data)
+  });
+  return r.json();
+}
+
+/* ═════════ 状态 ═════════ */
+let QUESTIONS = DEFAULT_QUESTIONS;
+let hostRecord = null;
+let players = [];
+let currentQ = 0;
+let guesses = [];       // 每题答案 true/false
+let locked = [];       // 每题是否已锁
+
+/* ═════════ 初始化加载 ═════════ */
+async function init(){
+  makeSnow(35);
+  drawTree();
+  buildOrnGrid('guestOrnGrid','guest_orn');
+
+  players = await fetchPlayers();
+  hostRecord = players.find(p=>p.is_host);
+
+  // 用主人设置的题目（如果有）
+  if(hostRecord && hostRecord.questions && hostRecord.questions.length >= 1){
+    QUESTIONS = hostRecord.questions;
+  }
+
+  renderHostHint();
+  buildAllQuestions();
+  renderTree();
+  startPolling();
+}
+
+function renderHostHint(){
+  const el = document.getElementById('hostHint');
+  if(hostRecord){
+    el.innerHTML = `你正在猜 <b style="color:#ffe066">「${hostRecord.name}」👑</b> 的答案，共 ${QUESTIONS.length} 题`;
+    document.getElementById('quizTitle').textContent = `🎁 猜猜 ${hostRecord.name} 的答案`;
+  } else {
+    el.textContent = '等待主人设置答案，稍后再来...';
+  }
+}
+
+/* ═════════ 建所有题目DOM（初始只显示第一题） ═════════ */
+function buildAllQuestions(){
+  const c = document.getElementById('questionsContainer');
+  c.innerHTML = '';
+  guesses = new Array(QUESTIONS.length).fill(null);
+  locked = new Array(QUESTIONS.length).fill(false);
+  currentQ = 0;
+
+  QUESTIONS.forEach((q,i)=>{
+    const div = document.createElement('div');
+    div.className = 'q-single' + (i===0 ? ' active' : '');
+    div.id = 'qcard_'+i;
+    div.innerHTML = `
+      <div class="qnum">第 ${i+1} 题（共 ${QUESTIONS.length} 题）</div>
+      <div class="qtext">${q.text}</div>
+      <div class="opts">
+        <div class="opt" id="opt_${i}_a">${q.a}</div>
+        <div class="opt" id="opt_${i}_b">${q.b}</div>
+      </div>`;
+    c.appendChild(div);
+  });
+
+  // 绑定选项点击
+  QUESTIONS.forEach((_,i)=>{
+    document.getElementById(`opt_${i}_a`).onclick = ()=>pick(i,true);
+    document.getElementById(`opt_${i}_b`).onclick = ()=>pick(i,false);
+  });
+
+  updateProgress();
+}
+
+function pick(i, val){
+  if(locked[i]) return;
+  guesses[i] = val;
+  locked[i] = true;
+
+  // 锁住选项视觉
+  document.getElementById(`opt_${i}_a`).classList.add('locked');
+  document.getElementById(`opt_${i}_b`).classList.add('locked');
+  document.getElementById(`opt_${i}_${val?'a':'b'}`).style.borderColor = '#ffe066';
+  document.getElementById(`opt_${i}_${val?'a':'b'}`).style.background = 'rgba(255,224,102,.2)';
+  document.getElementById(`opt_${i}_${val?'a':'b'}`).style.color = '#ffe066';
+
+  // 显示已答回顾
+  showDone(i);
+
+  // 进入下一题
+  setTimeout(()=>{
+    document.getElementById('qcard_'+i).classList.remove('active');
+    if(i+1 < QUESTIONS.length){
+      currentQ = i+1;
+      document.getElementById('qcard_'+currentQ).classList.add('active');
+      updateProgress();
+      document.getElementById('qcard_'+currentQ).scrollIntoView({behavior:'smooth',block:'nearest'});
+    } else {
+      // 全部答完，显示提交按钮
+      document.getElementById('submitArea').classList.remove('hidden');
+      document.getElementById('submitArea').scrollIntoView({behavior:'smooth'});
+    }
+  }, 300);
+}
+
+function showDone(i){
+  const q = QUESTIONS[i];
+  const list = document.getElementById('doneList');
+  const item = document.createElement('div');
+  item.className = 'q-done';
+  item.innerHTML = `<span class="mark">✓</span> ${i+1}. ${q.text.split('？')[0]} → <b style="color:#ffe066">${guesses[i]?q.a:q.b}</b>`;
+  list.appendChild(item);
+}
+
+function updateProgress(){
+  const answered = guesses.filter(g=>g!==null).length;
+  document.getElementById('progressBar').style.width = (answered/QUESTIONS.length*100)+'%';
+}
+
+/* ═════════ 开始答题按钮 ═════════ */
+document.getElementById('startQuiz').onclick = ()=>{
+  const name = document.getElementById('guestName').value.trim();
+  if(!name){alert('请输入昵称');return}
+  if(!hostRecord){alert('主人还没设置答案，请稍后再来');return}
+  document.getElementById('prepArea').classList.add('hidden');
+  document.getElementById('quizArea').classList.remove('hidden');
+  document.getElementById('qcard_0').classList.add('active');
+  updateProgress();
+};
+
+/* ═════════ 提交 ═════════ */
+document.getElementById('guestSubmit').onclick = async ()=>{
+  if(guesses.some(g=>g===null)){alert('还有题目没有回答');return}
+
+  let score = 0;
+  QUESTIONS.forEach((q,i)=>{
+    const hostAns = hostRecord.answers[i];
+    // 最后一题（index = length-1）A和B都对
+    const isLast = i === QUESTIONS.length - 1;
+    if(isLast) score++;
+    else if(hostAns === guesses[i]) score++;
+  });
+
+  const orn = localStorage.getItem('guest_orn') || ORNAMENTS[0];
+  const name = document.getElementById('guestName').value.trim();
+  const res = await insertPlayer({
+    name, ornament: orn,
+    answers: null, guesses,
+    score, layer: score,
+    is_host: false, host_id: hostRecord.id
+  });
+
+  if(res.error){alert('提交失败：'+JSON.stringify(res));return}
+
+  document.getElementById('submitArea').classList.add('hidden');
+  const total = QUESTIONS.length;
+  const diff = score>=Math.ceil(total*.7)?'🎉 默契满分！你们超合拍！':
+               score>=Math.ceil(total*.4)?'😊 还不错，继续了解对方吧～':
+               '😅 默契有待提高，多聊聊再试一次！';
+  document.getElementById('guestResult').innerHTML = `
+    <div class="result ${score>=Math.ceil(total*.4)?'good':'bad'}">
+      你的默契分：<b>${score} / ${total}</b>${diff}
+    </div>
+    <button class="btn btn-ghost" onclick="location.reload()">再猜一次 ✨</button>`;
+  document.getElementById('guestResult').scrollIntoView({behavior:'smooth'});
+
+  players = await fetchPlayers();
+  renderTree();
+  startPolling();
+};
+
+/* ═════════ 雪花 ═════════ */
+function makeSnow(n=30){
+  const box=document.getElementById('snow');
+  for(let i=0;i<n;i++){
+    const s=document.createElement('div');
+    s.className='snow';
+    s.style.cssText=`--x:${Math.random()*100}vw;--s:${2+Math.random()*5}px;--o:${0.3+Math.random()*0.6};--d:${4+Math.random()*8}s`;
+    s.style.animationDelay=`-${Math.random()*10}s`;
+    box.appendChild(s);
+  }
+}
+
+/* ═════════ 圣诞树 SVG ═════════ */
+function drawTree(){
+  const svg=document.getElementById('treeSVG');
+  const cx=170,topY=40,botY=390;
+  const layerH=(botY-topY)/TREE_LAYERS,maxW=160;
+  let t='';
+  t+=`<rect x="${cx-10}" y="${botY-10}" width="20" height="30" rx="3" fill="#5a3a1a"/>`;
+  for(let i=0;i<TREE_LAYERS;i++){
+    const y1=topY+i*layerH,y2=y1+layerH+4;
+    const w=maxW*((i+1)/TREE_LAYERS);
+    const x1=cx-w/2,x2=cx+w/2;
+    t+=`<polygon points="${x1},${y2} ${x2},${y2} ${cx},${y1}"
+      fill="hsl(140,60%,${18+i*2}%)" stroke="rgba(0,0,0,.15)" stroke-width="1"/>`;
+    t+=`<line x1="${x1+8}" y1="${y2}" x2="${x2-8}" y2="${y2}"
+      stroke="rgba(255,220,100,.3)" stroke-width="1" stroke-dasharray="4,4"/>`;
+    const label=i===TREE_LAYERS-1?'第1层(顶)':`第${i+1}层`;
+    t+=`<text x="${x2+12}" y="${(y1+y2)/2+4}" font-size="10"
+      fill="rgba(255,255,255,.35)">${label}</text>`;
+  }
+  t+=`<text x="${cx}" y="${topY-12}" text-anchor="middle" font-size="28">⭐</text>`;
+  t+=`<circle cx="${cx}" cy="${topY-24}" r="20" fill="rgba(255,215,0,.2)">
+    <animate attributeName="r" values="15;25;15" dur="2s" repeatCount="indefinite"/>
+  </circle>`;
+  svg.innerHTML=t;
+  window._layerY={};window._layerX={};
+  for(let i=0;i<TREE_LAYERS;i++){
+    const y1=topY+i*layerH,y2=y1+layerH+4;
+    window._layerY[i]=(y1+y2)/2;
+    const w=maxW*((i+1)/TREE_LAYERS);
+    window._layerX[i]={x1:cx-w/2+10,x2:cx+w/2-10};
+  }
+}
+
+/* ═════════ 挂件渲染 ═════════ */
+function renderTree(){
+  const box=document.getElementById('treeBox');
+  box.querySelectorAll('.orn').forEach(el=>el.remove());
+  if(!window._layerY||!players.length)return;
+  const scale=box.clientWidth/340;
+  const byLayer={};
+  players.forEach(p=>{
+    const L=Math.min(Math.max(p.score||1,1),TREE_LAYERS);
+    (byLayer[L]=byLayer[L]||[]).push(p);
+  });
+  Object.entries(byLayer).forEach(([layer,ps])=>{
+    const realLayer=TREE_LAYERS-(+layer);
+    const realY=window._layerY[realLayer]*scale;
+    const range=window._layerX[realLayer];
+    const span=range.x2-range.x1;
+    const spacing=Math.max(44,span/(ps.length+1));
+    const startX=range.x1+spacing/2;
+    ps.forEach((p,idx)=>{
+      const el=document.createElement('div');
+      el.className='orn'+(p.is_host?' host':'');
+      el.style.left=(startX+idx*spacing)+'px';
+      el.style.top=realY+'px';
+      el.innerHTML=`<div class="icon">${p.ornament}</div>
+        <div class="tag">${p.name} ${p.is_host?'👑':(p.score+'分')}</div>`;
+      el.title=p.is_host?`${p.name}（主人）`:`${p.name}：默契分 ${p.score}`;
+      box.appendChild(el);
+    });
+  });
+}
+
+/* ═════════ 挂件选择 ═════════ */
+function buildOrnGrid(gridId,selKey){
+  const g=document.getElementById(gridId);
+  g.innerHTML='';
+  ORNAMENTS.forEach(orn=>{
+    const d=document.createElement('div');
+    d.className='orn-opt'+(localStorage.getItem(selKey)===orn?' sel':'');
+    d.textContent=orn;
+    d.onclick=()=>{
+      g.querySelectorAll('.orn-opt').forEach(o=>o.classList.remove('sel'));
+      d.classList.add('sel');
+      localStorage.setItem(selKey,orn);
+    };
+    g.appendChild(d);
+  });
+}
+
+/* ═════════ 轮询 ═════════ */
+function startPolling(){
+  clearInterval(window._poll);
+  window._poll = setInterval(async()=>{
+    players = await fetchPlayers();
+    hostRecord = players.find(p=>p.is_host);
+    renderTree();
+  },3000);
+}
+
+/* ═════════ 启动 ═════════ */
+window.onload = init;
+window.addEventListener('resize', renderTree);
+</script>
+</body>
+</html>
